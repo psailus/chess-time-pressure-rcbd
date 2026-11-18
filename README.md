@@ -7,7 +7,7 @@
 **Does tactical accuracy in chess decline gradually as time shrinks, or fall off a cliff?**
 This project is a designed experiment (randomized complete block design with Latin square counterbalancing) in which 6 players solved Lichess puzzles under three time controls. Time pressure caused a large, consistent drop in accuracy, and the drop was about the same size for every player.
 
-📄 **[Full report (PDF)](report.pdf)** · 📊 **[Raw data](data/chess_puzzle_data.csv)** · 🧪 **[Reproducible Quarto source](chess_decision_experiment.qmd)**
+📄 **[Full report (PDF)](report.pdf)** · 📊 **[Raw data](chess_puzzle_data.csv)** · 🧪 **[Reproducible Quarto source](chess_decision_experiment.qmd)**
 
 *By Sai Kadiyala*
 
