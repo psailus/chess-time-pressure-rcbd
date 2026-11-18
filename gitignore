@@ -1,0 +1,19 @@
+# History and session files
+.Rhistory
+.RData
+.Ruserdata
+
+# RStudio files
+.Rproj.user/
+
+# Quarto output cache and intermediate files
+.quarto/
+*_files/
+*_cache/
+*.knit.md
+*.utf8.md
+*.log
+*.aux
+*.out
+*.toc
+.DS_Store
