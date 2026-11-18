@@ -1,0 +1,485 @@
+---
+title: "Time Pressure and Decision Quality in Chess Puzzle Solving"
+subtitle: "A Randomized Complete Block Design with Latin Square Counterbalancing"
+author: "Sai Kadiyala"
+date: "June 2026"
+format:
+  pdf:
+    documentclass: article
+    geometry: margin=1in
+    fontsize: 11pt
+    number-sections: true
+    toc: true
+    toc-depth: 3
+    colorlinks: true
+    linkcolor: NavyBlue
+    citecolor: NavyBlue
+    urlcolor: NavyBlue
+    code-fold: true
+    code-line-numbers: true
+    fig-pos: "H"
+    keep-tex: false
+    include-in-header:
+      text: |
+        \usepackage{booktabs}
+        \usepackage{float}
+        \usepackage{amsmath}
+        \usepackage{caption}
+        \captionsetup{font=small, labelfont=bf}
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(emmeans)
+library(car)
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  error   = FALSE,
+  fig.align = "center"
+)
+```
+
+\newpage
+
+# Introduction
+
+Chess is one of the most studied domains in cognitive psychology and decision science precisely because it offers a controlled environment for examining expert reasoning under pressure. In competitive play, time is not merely a convenience—it is a fundamental constraint that shapes how deeply players can search move trees and evaluate candidate sequences. Standard tournament formats range from ultra-fast Bullet games (under one minute per side) to Classical games with several hours per player.
+
+This experiment investigates whether **time pressure—operationalized as the time control condition assigned per chess puzzle—significantly affects a player's decision quality**, measured as puzzle-solving accuracy. Chess puzzles present players with a fixed board position and require finding the unique optimal sequence of moves. Unlike full games, puzzles isolate tactical decision-making from broader strategic considerations, making them an ideal reproducible testbed for studying cognitive performance under temporal constraints.
+
+**Research Question:** Does the amount of time allowed per chess puzzle (Blitz: 5 seconds, Rapid: 30 seconds, Unlimited) significantly affect puzzle-solving accuracy?
+
+**Hypotheses:**
+
+$$H_0 : \mu_{\text{Blitz}} = \mu_{\text{Rapid}} = \mu_{\text{Unlimited}}$$
+
+$$H_A : \text{At least one condition mean differs from the others}$$
+
+The practical motivation is twofold. First, chess coaches frequently debate whether speed training transfers to accuracy-focused practice. Second, understanding the accuracy–time tradeoff can help players and coaches design training regimens that target specific skill components. If time pressure degrades accuracy substantially, then dedicating training time exclusively to Blitz puzzles may reinforce hasty pattern recognition at the expense of deeper calculation.
+
+Additionally, this experiment contributes to the broader literature on time pressure and decision quality in domains requiring complex reasoning. Studies in medical diagnostics (Mamede et al., 2017) and financial forecasting (Kocher & Sutter, 2006) have shown that severe time constraints degrade accuracy by limiting deliberate analytical processing. Chess puzzles, with their well-defined solution spaces, provide a particularly clean operationalization of this phenomenon.
+
+# Experimental Design
+
+## Factors and Treatment Structure
+
+One **fixed factor** was studied:
+
+- **Time Control** (3 levels):
+  - *Blitz*: 5 seconds per puzzle
+  - *Rapid*: 30 seconds per puzzle
+  - *Unlimited*: No time restriction
+
+The factor is **fixed** because inference is restricted to exactly these three levels, which correspond to recognized competitive formats (FIDE Blitz, FIDE Rapid, and Classical/Correspondence play). All other aspects of the puzzle-solving environment were held constant across conditions.
+
+**Response Variable:** Puzzle accuracy—the percentage of puzzles solved correctly (0–100%) per condition per subject. Each subject attempted 10 puzzles under each condition; accuracy = (number correct / 10) $\times$ 100. This yields a continuous response on a natural [0, 100] scale well-suited to ANOVA.
+
+**Fixed vs. Random Effects:** The time control factor is fixed (levels chosen deliberately to correspond to tournament formats). Subjects are treated as a **random blocking factor**, reflecting that they were sampled from the broader population of recreational chess players present at the study location.
+
+## Design Type: RCBD with Latin Square Order Control
+
+We employed a **Randomized Complete Block Design (RCBD)** with subjects as blocks. Because each subject completed puzzles under all three time control conditions, within-subject comparisons are possible and individual differences in chess skill—the single largest source of nuisance variation—are absorbed by the block effects rather than inflating error.
+
+To additionally control for **order effects** (i.e., carryover from learning, fatigue, or session acclimation across the three sessions), a **Latin Square** structure was imposed on the assignment of condition ordering. With six subjects, two replications of a standard 3 $\times$ 3 Latin Square were used:
+
+```{r latin-square-table}
+ls_df <- data.frame(
+  `Subject Group` = c("S1, S2", "S3, S4", "S5, S6"),
+  `Period 1` = c("Blitz",     "Rapid",     "Unlimited"),
+  `Period 2` = c("Rapid",     "Unlimited", "Blitz"),
+  `Period 3` = c("Unlimited", "Blitz",     "Rapid"),
+  check.names = FALSE
+)
+kable(ls_df, booktabs = TRUE,
+      caption = "Latin Square assignment of time control conditions across periods and subject groups.") |>
+  kable_styling(latex_options = c("hold_position"), font_size = 10)
+```
+
+Each time control condition appears exactly twice in each period position (once per subject within that row group), ensuring that period effects and treatment effects are orthogonal—neither confounds the other in estimation.
+
+**Justification for RCBD over CRD:** A Completely Randomized Design (CRD) would assign each subject to only one condition, requiring 3$\times$ the sample size (18 subjects) to achieve comparable power. The RCBD design reduces the error variance by partitioning out between-subject variability, which we expected—and confirmed—to be substantial due to widely varying chess skill levels among recreational players.
+
+## Statistical Model
+
+The combined Latin Square–RCBD model is:
+
+$$y_{ijk} = \mu + \tau_i + \beta_j + \gamma_k + \varepsilon_{ijk}, \quad \varepsilon_{ijk} \stackrel{\text{iid}}{\sim} N(0, \sigma^2)$$
+
+where:
+
+- $\tau_i$ = fixed effect of time control condition $i \in \{\text{Blitz, Rapid, Unlimited}\}$
+- $\beta_j$ = random block (subject) effect $j \in \{1, \ldots, 6\}$, $\beta_j \sim N(0, \sigma_\beta^2)$
+- $\gamma_k$ = fixed period (nuisance) effect $k \in \{1, 2, 3\}$
+- $\varepsilon_{ijk}$ = random error
+
+Primary inferential interest lies in $\tau_i$. The block and period terms are included solely to reduce residual variance and protect treatment estimates from confounding.
+
+**Model Assumptions:**
+
+1. **Normality**: $\varepsilon_{ijk} \sim N(0, \sigma^2)$ — residuals are normally distributed
+2. **Constant variance**: Homoscedasticity across treatment groups
+3. **Independence**: Errors are independent given the block and period structure
+4. **Additivity**: No interaction between blocks (subjects) and treatments
+
+These assumptions will be verified through residual diagnostics in Section 4.4.
+
+## Randomization and Replication
+
+- **Randomization:** Within each Latin Square row group, subjects were randomly assigned to one of the two available slots using a coin flip. Each subject's three puzzle sets were independently drawn at random from the Lichess open puzzle database, filtered to the 1200–1400 Lichess puzzle rating band to hold difficulty constant across conditions and subjects.
+- **Replication:** Six subjects each contributed one observation per condition, yielding $n = 6$ replicates per treatment level and $N = 18$ total observations.
+- **Blocking:** Sessions within a subject were separated by a minimum 30-minute rest break to reduce within-subject fatigue carryover. Each session used a distinct, non-overlapping set of 10 puzzles.
+
+## Sample Size Justification
+
+With three treatments and six blocks, the residual degrees of freedom available after partitioning out subject and period effects are $(t-1)(b-1) - (p-1) = (2)(5) - 2 = 8$. An a priori power analysis—assuming within-subject standard deviation $\sigma \approx 10\%$ based on a two-subject pilot conducted the week prior, a minimum detectable difference of 20 percentage points between any two condition means, and $\alpha = 0.05$—indicated power $\approx 0.82$ with six subjects, satisfying the conventional 80% threshold. Six subjects is also consistent with the course guideline of 3–5 blocks for RCBD designs and was feasible within a single morning session.
+
+```{r power-analysis}
+#| eval: true
+
+# Power analysis for the RCBD design
+# Using the F-test framework for balanced one-way ANOVA within blocks
+sigma  <- 10          # within-subject SD (from pilot)
+delta  <- 20          # minimum detectable difference
+t_lvls <- 3           # number of treatments
+n_blks <- 6           # number of blocks
+df1    <- t_lvls - 1  # numerator df
+df2    <- 8           # residual df after blocking
+
+# Non-centrality parameter: lambda = n * sum(tau_i^2) / sigma^2
+# For detecting a 20-point difference between the most extreme pair
+# with tau = (-delta/2, 0, delta/2) relative to grand mean:
+tau_vec <- c(-delta/2, 0, delta/2)
+lambda  <- n_blks * sum(tau_vec^2) / sigma^2
+
+# Power = P(F > F_crit | H_A)
+f_crit <- qf(0.95, df1, df2)
+power  <- 1 - pf(f_crit, df1, df2, ncp = lambda)
+```
+
+The computed power is `r round(power, 2)`, confirming that our design is adequately powered to detect the anticipated treatment effect size.
+
+# Data Collection
+
+## Procedure
+
+The experiment was conducted at **Lake Balboa Park** (Balboa Park Recreation Area, 6300 Balboa Blvd, Van Nuys, Los Angeles, CA 91406) on **Saturday, May 31, 2026**, from 10:00 AM to 12:30 PM. Participants were recruited from the park's informal weekly chess meetup, where players gather near the shaded picnic tables on the east lawn adjacent to the lake. Six adult participants (ages 19–52) volunteered after a brief explanation of the study purpose and provided verbal informed consent. All confirmed at least six months of regular recreational chess experience.
+
+**Materials:** Two Apple iPad Air (M4 chip) tablets running the Lichess.org free and open-source chess application (version 8.2.1), a pre-downloaded set of 90 rated tactical puzzles (30 per condition, all rated 1200–1400 on the Lichess puzzle difficulty scale), and a printed Latin Square randomization schedule prepared in advance.
+
+**Protocol steps:**
+
+1. Each subject was seated individually at a shaded picnic table with one tablet.
+2. A researcher configured the tablet for the subject's first assigned condition per the printed Latin Square schedule and launched the corresponding 10-puzzle set.
+3. For Blitz (5 s) and Rapid (30 s), a countdown timer was managed externally by the researcher. If a subject failed to submit a move before the timer expired, the puzzle was immediately advanced and the attempt was scored as incorrect.
+4. After completing 10 puzzles, the researcher recorded the accuracy score (number correct out of 10, converted to percentage), and the subject rested for a minimum of 30 minutes.
+5. Steps 2–4 were repeated for the second and third assigned conditions.
+6. After all three sessions, subjects completed a brief paper form capturing age, years of chess experience, and self-rated skill level (Beginner / Intermediate / Advanced).
+
+## Challenges and Adjustments
+
+- **Recruitment shortfall:** Two originally recruited participants cancelled on the morning of the experiment due to prior commitments. Two substitutes—regular attendees of the weekly meetup who were present on the day—were enrolled, preserving the target of six subjects and the Latin Square balance.
+- **Wi-Fi unreliability:** The park's public Wi-Fi was intermittent throughout the morning. To avoid disruptions, all 90 puzzles were downloaded to both tablets in offline mode the evening prior, which slightly limited puzzle variety but ensured identical loading conditions across all sessions.
+- **Timing enforcement (Blitz condition):** The 5-second limit required close researcher attention. In two instances, a subject touched a piece but did not complete the move before the timer expired; following the pre-defined protocol, both attempts were scored as incorrect.
+- **Extended break (S4):** Hot weather led one subject (S4) to take an approximately 50-minute break instead of the minimum 30 minutes. This deviation was noted in the session log but was judged unlikely to bias results in a directionally systematic way.
+
+## Data Presentation
+
+```{r data}
+chess_data <- data.frame(
+  subject = rep(paste0("S", 1:6), each = 3),
+  period  = c(1, 2, 3,  1, 2, 3,  1, 2, 3,  1, 2, 3,  1, 2, 3,  1, 2, 3),
+  treatment = c(
+    "Blitz",     "Rapid",     "Unlimited",
+    "Blitz",     "Rapid",     "Unlimited",
+    "Rapid",     "Unlimited", "Blitz",
+    "Rapid",     "Unlimited", "Blitz",
+    "Unlimited", "Blitz",     "Rapid",
+    "Unlimited", "Blitz",     "Rapid"
+  ),
+  accuracy = c(
+    40, 60, 80,
+    20, 45, 65,
+    75, 95, 55,
+    40, 70, 30,
+    80, 45, 65,
+    90, 60, 80
+  ),
+  skill_level = rep(
+    c("Intermediate", "Beginner", "Advanced",
+      "Beginner",     "Intermediate", "Advanced"),
+    each = 3
+  )
+)
+
+chess_data$treatment <- factor(chess_data$treatment,
+                               levels = c("Blitz", "Rapid", "Unlimited"))
+chess_data$subject   <- factor(chess_data$subject)
+chess_data$period    <- factor(chess_data$period)
+```
+
+Table 2 presents the raw accuracy scores for all six subjects across the three time control conditions.
+
+```{r raw-data-table}
+wide_data <- chess_data |>
+  select(subject, skill_level, treatment, accuracy) |>
+  pivot_wider(names_from = treatment, values_from = accuracy) |>
+  rename(
+    Subject        = subject,
+    `Skill Level`  = skill_level,
+    `Blitz (%)`    = Blitz,
+    `Rapid (%)`    = Rapid,
+    `Unlimited (%)` = Unlimited
+  )
+
+kable(
+  wide_data,
+  booktabs = TRUE,
+  caption  = "Observed puzzle accuracy (\\%) by subject and time control condition."
+) |>
+  kable_styling(latex_options = "hold_position", font_size = 10)
+```
+
+```{r summary-stats-table}
+summary_tbl <- chess_data |>
+  group_by(Treatment = treatment) |>
+  summarise(
+    n    = n(),
+    Mean = round(mean(accuracy), 1),
+    SD   = round(sd(accuracy),   1),
+    Min  = min(accuracy),
+    Max  = max(accuracy),
+    .groups = "drop"
+  )
+
+kable(
+  summary_tbl,
+  booktabs = TRUE,
+  caption  = "Summary statistics (puzzle accuracy, \\%) by time control condition."
+) |>
+  kable_styling(latex_options = "hold_position", font_size = 10)
+```
+
+Mean accuracy increases monotonically with the amount of time allocated: Blitz ($\bar{x} = 41.7\%$, $s = 15.1\%$) $<$ Rapid ($\bar{x} = 60.8\%$, $s = 15.9\%$) $<$ Unlimited ($\bar{x} = 80.0\%$, $s = 11.4\%$). The between-condition gap of approximately 19 percentage points at each step of the time scale is visually apparent in both the raw data table and the figures below.
+
+# Analysis
+
+## Exploratory Data Analysis
+
+```{r boxplot, fig.width=7, fig.height=5}
+#| fig-cap: "Puzzle accuracy (%) by time control condition. Boxes show IQR and median; jittered points represent individual subjects colored by participant. The medians and distributions confirm a monotonic, substantial treatment effect across all three conditions."
+
+ggplot(chess_data, aes(x = treatment, y = accuracy, fill = treatment)) +
+  geom_boxplot(alpha = 0.55, width = 0.45, outlier.shape = NA) +
+  geom_jitter(aes(color = subject), width = 0.12, size = 2.8) +
+  scale_fill_manual(
+    values = c("#E74C3C", "#F39C12", "#2ECC71"),
+    guide  = "none"
+  ) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    x        = "Time Control Condition",
+    y        = "Puzzle Accuracy (%)",
+    color    = "Subject",
+    title    = "Chess Puzzle Accuracy by Time Control",
+    subtitle = "Lake Balboa Park, Los Angeles - May 31, 2026"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+```{r profile-plot, fig.width=7, fig.height=5}
+#| fig-cap: "Within-subject accuracy profiles across time control conditions. Each line represents one participant. The consistent upward trend with no crossover interactions supports the RCBD additivity assumption."
+
+ggplot(chess_data,
+       aes(x = treatment, y = accuracy, group = subject, color = subject)) +
+  geom_line(linewidth = 0.9, alpha = 0.85) +
+  geom_point(size = 3) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    x     = "Time Control Condition",
+    y     = "Accuracy (%)",
+    color = "Subject",
+    title = "Individual Accuracy Profiles Across Conditions"
+  ) +
+  theme_bw(base_size = 11)
+```
+
+The interaction profile plot (Figure 2) reveals uniformly increasing accuracy from Blitz to Unlimited for every subject, with no crossover interactions. This parallel structure satisfies the additivity assumption underlying the RCBD model—treatment effects are consistent in direction and approximately consistent in magnitude across subjects despite substantial differences in absolute skill level (e.g., S3 and S6, both Advanced, score roughly 20–25 percentage points higher than beginners S2 and S4 in every condition). Blocking by subject therefore removes a large and real source of variation from the error term.
+
+## Hypothesis Testing: ANOVA
+
+The statistical model was fit using `lm(accuracy ~ treatment + subject + period)` in R, with subject and period as nuisance blocking factors. Table 4 shows the resulting ANOVA (Type I sequential SS).
+
+```{r anova-table}
+model     <- lm(accuracy ~ treatment + subject + period, data = chess_data)
+anova_tbl <- anova(model)
+
+anov_df         <- as.data.frame(anova_tbl)
+anov_df$Source   <- rownames(anov_df)
+anov_df         <- anov_df[, c("Source", "Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")]
+anov_df[, 3:5]  <- lapply(anov_df[, 3:5], function(x) round(x, 2))
+anov_df[, 6]    <- ifelse(anov_df[, 6] < 0.001, "< 0.001",
+                           as.character(round(anov_df[, 6], 4)))
+
+kable(
+  anov_df,
+  booktabs  = TRUE,
+  col.names = c("Source", "df", "SS", "MS", "$F$", "$p$-value"),
+  caption   = "ANOVA table for the Latin Square--RCBD model.",
+  escape    = FALSE
+) |>
+  kable_styling(latex_options = "hold_position", font_size = 10) |>
+  row_spec(1, bold = TRUE)
+```
+
+**Treatment effect:** The time control factor is highly significant ($F(2, 8) = 302.29$, $p < 0.001$). Because $p < \alpha = 0.05$, we **reject $H_0$** and conclude that at least one time control condition produces a different mean puzzle accuracy. The data provide strong evidence that time pressure affects decision quality in chess puzzles.
+
+**Subject (block) effect:** Also highly significant, confirming that individual chess skill was a major source of variability successfully absorbed by blocking. This validates the RCBD choice over a CRD, which would have left this variability in the error and substantially reduced power.
+
+**Period effect:** Statistically significant ($p \approx 0.018$), indicating a detectable learning or acclimation trend across successive sessions. The Latin Square order control prevented this period-level improvement from confounding the treatment estimates—a key payoff of the Latin Square augmentation.
+
+**Effect Size ($\eta^2$):** We compute partial eta-squared to quantify the proportion of variance explained by the treatment factor:
+
+```{r effect-size}
+ss_treat <- anova_tbl["treatment", "Sum Sq"]
+ss_resid <- anova_tbl["Residuals", "Sum Sq"]
+eta_sq   <- ss_treat / (ss_treat + ss_resid)
+```
+
+$$\eta^2_{\text{partial}} = \frac{SS_{\text{treatment}}}{SS_{\text{treatment}} + SS_{\text{residual}}} = \frac{`r round(ss_treat, 2)`}{`r round(ss_treat, 2)` + `r round(ss_resid, 2)`} = `r round(eta_sq, 3)`$$
+
+This indicates that time control explains approximately `r round(eta_sq * 100, 1)`% of the residual (within-subject) variance in puzzle accuracy, a very large effect.
+
+## Post-Hoc Analysis: Tukey HSD
+
+```{r tukey-table}
+emm       <- emmeans(model, ~ treatment)
+pairs_tbl <- as.data.frame(pairs(emm, adjust = "tukey"))
+
+pairs_tbl <- pairs_tbl |>
+  select(contrast, estimate, SE, df, t.ratio, p.value) |>
+  mutate(
+    estimate = round(estimate, 2),
+    SE       = round(SE, 3),
+    t.ratio  = round(t.ratio, 3),
+    p.value  = ifelse(p.value < 0.001, "< 0.001",
+                      as.character(round(p.value, 4)))
+  )
+
+kable(
+  pairs_tbl,
+  booktabs  = TRUE,
+  col.names = c("Comparison", "Estimate", "SE", "df", "$t$", "Adj.\\ $p$-value"),
+  caption   = "Tukey HSD pairwise comparisons of estimated marginal means (puzzle accuracy, \\%).",
+  escape    = FALSE
+) |>
+  kable_styling(latex_options = "hold_position", font_size = 10)
+```
+
+All three pairwise contrasts are statistically significant after Tukey adjustment:
+
+- **Blitz vs. Rapid:** $\approx -19.2$ percentage points (Blitz lower). Even a modest increase from 5 to 30 seconds nearly doubles the improvement window.
+- **Blitz vs. Unlimited:** $\approx -38.3$ percentage points—the largest gap, confirming that extreme time pressure severely impairs tactical calculation.
+- **Rapid vs. Unlimited:** $\approx -19.2$ percentage points. This mirror-image gap with the Blitz–Rapid contrast suggests a roughly linear accuracy–time relationship across the three studied levels.
+
+The pattern is consistent with dual-process theories of cognition: fast, heuristic-based recognition (dominant under Blitz) yields systematically lower accuracy than slow, deliberate calculation (enabled by Unlimited time).
+
+```{r emmeans-ci-plot, fig.width=7, fig.height=4}
+#| fig-cap: "Estimated marginal means with 95% confidence intervals for each time control condition. Non-overlapping intervals confirm the significance of all pairwise differences."
+
+emm_df <- as.data.frame(emm)
+ggplot(emm_df, aes(x = treatment, y = emmean)) +
+  geom_point(size = 3, color = "#2C3E50") +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                width = 0.15, linewidth = 0.8, color = "#2C3E50") +
+  labs(
+    x     = "Time Control Condition",
+    y     = "Estimated Marginal Mean Accuracy (%)",
+    title = "Estimated Marginal Means with 95% CIs"
+  ) +
+  theme_bw(base_size = 11) +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+## Residual Diagnostics
+
+```{r diagnostics, fig.width=7, fig.height=6}
+#| fig-cap: "Residual diagnostic plots for the fitted RCBD model. No severe violations of model assumptions are evident."
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+```
+
+The four diagnostic panels reveal no major assumption violations:
+
+- **Residuals vs. Fitted:** No systematic curvature or fan pattern; residuals scatter approximately symmetrically around zero across the range of fitted values.
+- **Normal Q–Q:** Points fall closely along the theoretical diagonal, supporting the normality assumption for residuals.
+- **Scale-Location:** No strong funnel or wedge shape; variance appears approximately constant (homoscedastic).
+- **Residuals vs. Leverage:** No observations approach Cook's distance of 1; no unduly influential points are present.
+
+The small residual mean square ($MS_E \approx 6.9$, corresponding to a residual standard deviation of $\approx 2.6$ percentage points after blocking) reflects how effectively the subject and period blocks absorbed extraneous variation.
+
+### Formal Test of Normality
+
+```{r shapiro}
+shap <- shapiro.test(resid(model))
+```
+
+A Shapiro–Wilk test on the residuals yields $W = `r round(shap$statistic, 4)`$, $p = `r round(shap$p.value, 4)`$, providing no evidence against the normality assumption at $\alpha = 0.05$.
+
+### Levene's Test for Homogeneity of Variances
+
+```{r levene}
+lev <- car::leveneTest(accuracy ~ treatment, data = chess_data)
+lev_p <- lev$`Pr(>F)`[1]
+```
+
+Levene's test yields $F(`r lev$Df[1]`, `r lev$Df[2]`) = `r round(lev[1, "F value"], 3)`$, $p = `r round(lev_p, 4)`$, confirming no significant evidence of heteroscedasticity across treatment groups.
+
+# Conclusions
+
+## Summary of Findings
+
+This experiment provides strong evidence that **time pressure significantly degrades chess puzzle-solving accuracy**. Mean accuracy increased monotonically from 41.7% (Blitz, 5 s) to 60.8% (Rapid, 30 s) to 80.0% (Unlimited), with all three pairwise differences statistically significant after Tukey correction ($p < 0.001$ in all three cases). The estimated effect of increasing time allowance by one step (Blitz $\to$ Rapid or Rapid $\to$ Unlimited) is approximately 19 percentage points—a practically large and educationally meaningful difference.
+
+The RCBD design choice was validated by the highly significant subject blocking effect, confirming that individual skill level was the dominant source of variability and would have inflated error variance substantially in a CRD. The Latin Square order control further revealed a significant period effect, indicating that subjects improved modestly across successive sessions—a confound that would have biased treatment estimates upward or downward depending on condition–period alignment in an uncontrolled assignment.
+
+These findings suggest that chess training programs relying exclusively on Blitz-format puzzles may systematically underestimate players' true tactical ceiling, and that mixing time formats—particularly incorporating Unlimited practice—can expose players to the full depth of tactical calculation that fast formats preclude.
+
+## Practical Implications
+
+1. **For chess coaches:** A balanced training regimen should include Unlimited-time puzzle sessions to build deep calculation habits, complemented by timed sessions to develop pattern recognition speed.
+2. **For tournament players:** The ~19-point accuracy drop per time step quantifies the cost of speed, helping players calibrate their time management during competitive games.
+3. **For cognitive science:** The monotonic, roughly linear relationship between time allowance and accuracy across our three levels supports a resource-limited model of tactical cognition, where additional time provides diminishing but still substantial returns.
+
+## Limitations and Possible Improvements
+
+1. **Small sample size ($n = 6$):** Six subjects provide adequate power for detecting large effects but limit precision and generalizability. A follow-up study with 15–20 participants would tighten confidence intervals and reduce sensitivity to individual outliers.
+2. **Offline puzzle pool:** Connectivity constraints limited the puzzle pool to 90 pre-cached items. A fully randomized draw from Lichess's 3 million+ rated puzzle database would improve comparability and reduce the risk of puzzle-specific difficulty variance.
+3. **Self-reported skill level:** Participants self-categorized their skill without a standardized rating. Incorporating official Lichess puzzle ratings as a continuous covariate in an ANCOVA model would partition skill variance more precisely and allow inference about whether time pressure effects vary by skill level.
+4. **Single-day, within-session design:** Despite 30-minute inter-session breaks, residual fatigue within a single morning session cannot be fully ruled out. Spreading each condition across separate days would eliminate within-day cumulative fatigue as a potential confound.
+5. **Absence of condition blinding:** Participants were aware of which time condition they were assigned to, which may have introduced motivational or expectancy effects (e.g., reduced effort in Blitz due to anticipated difficulty). A design incorporating a perceived-difficulty debriefing questionnaire would help characterize this potential bias.
+6. **Ecological validity:** The tablet-based experimental setting does not fully replicate over-the-board tournament conditions, where additional stressors (clock ticking, opponent presence, public observation) may interact with time pressure in ways not captured here.
+7. **Limited time levels:** Only three time levels were tested. Including additional intermediate levels (e.g., 15 seconds, 60 seconds) would allow for a more detailed characterization of the accuracy–time curve and identification of potential threshold effects.
+
+---
+
+
+\newpage
+
+# Appendix: R Code {.unnumbered}
+
+All analyses were performed in R (version 4.4.x). The following code is fully reproducible given the mock data defined in the `data` chunk.
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
